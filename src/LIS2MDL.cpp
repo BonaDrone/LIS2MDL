@@ -1,90 +1,87 @@
-/* 09/23/2017 Copyright Tlera Corporation
+/* 
+   LIS2MDL.cpp: Implementation of LIS2MDL class
 
-   Created by Kris Winer
+   Copyright (C) 2018 Simon D. Levy
 
-   This sketch uses SDA/SCL on pins 21/20 (Butterfly default), respectively, and it uses the Butterfly STM32L433CU Breakout Board.
-   The LIS2MDL is a low power magnetometer, here used as 3 DoF in a 9 DoF absolute orientation solution.
+   Adapted from https://github.com/kriswiner/LIS2MDL_LPS22HB
 
-   Library may be used freely and without limit with attribution.
+   This file is part of LIS2MDL.
 
- */
+   LIS2MDL is free software: you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
 
-#include "_LIS2MDL.h"
+   LIS2MDL is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+   You should have received a copy of the GNU General Public License
+   along with LIS2MDL.  If not, see <http://www.gnu.org/licenses/>.
+*/
 
-LIS2MDL::LIS2MDL(uint8_t intPin)
+
+#include "LIS2MDL.h"
+
+#include <CrossPlatformI2C_Core.h>
+
+LIS2MDL::LIS2MDL(Rate_t rate)
 {
-    pinMode(intPin, INPUT);
-    _intPin = intPin;
+    _rate = rate;
 }
 
-
-uint8_t LIS2MDL::getChipID()
+bool LIS2MDL::begin(void)
 {
-    uint8_t c = readByte(LIS2MDL_ADDRESS, LIS2MDL_WHO_AM_I);
-    return c;
-}
+
+    _i2c = cpi2c_open(ADDRESS);
+
+    if (_i2c <= 0) {
+        return false;
+    }
+
+    delay(100);
 
 
-void LIS2MDL::reset()
-{
-    // reset device
-    uint8_t temp = readByte(LIS2MDL_ADDRESS, LIS2MDL_CFG_REG_A);
-    writeByte(LIS2MDL_ADDRESS, LIS2MDL_CFG_REG_A, temp | 0x20); // Set bit 5 to 1 to reset LIS2MDL
-    delay(1);
-    writeByte(LIS2MDL_ADDRESS, LIS2MDL_CFG_REG_A, temp | 0x40); // Set bit 6 to 1 to boot LIS2MDL
-    delay(100); // Wait for all registers to reset 
-}
+    if (readRegister(WHO_AM_I) != ADDRESS) {
+        return false;
+    }
 
-void LIS2MDL::init(uint8_t MODR)
-{
+    reset();
+
+    delay(100); 
+
     // enable temperature compensation (bit 7 == 1), continuous mode (bits 0:1 == 00)
-    writeByte(LIS2MDL_ADDRESS, LIS2MDL_CFG_REG_A, 0x80 | MODR<<2);  
+    writeRegister(CFG_REG_A, 0x80 | _rate<<2);  
 
     // enable low pass filter (bit 0 == 1), set to ODR/4
-    writeByte(LIS2MDL_ADDRESS, LIS2MDL_CFG_REG_B, 0x01);  
+    writeRegister(CFG_REG_B, 0x01);  
 
     // enable data ready on interrupt pin (bit 0 == 1), enable block data read (bit 4 == 1)
-    writeByte(LIS2MDL_ADDRESS, LIS2MDL_CFG_REG_C, 0x01 | 0x10);  
+    writeRegister(CFG_REG_C, 0x01 | 0x10);  
+
+    calibrate();
+
+    return true;
 }
 
-
-uint8_t LIS2MDL::status()
+bool LIS2MDL::checkNewData(void)
 {
-    // Read the status register of the altimeter  
-    uint8_t temp = readByte(LIS2MDL_ADDRESS, LIS2MDL_STATUS_REG);   
-    return temp;
+    return (bool)(readRegister(STATUS_REG)  & 0x08);   
 }
 
-
-void LIS2MDL::readData(int16_t * destination)
+void LIS2MDL::reset(void)
 {
-    uint8_t rawData[6];  // x/y/z mag register data stored here
-    readBytes(LIS2MDL_ADDRESS, (0x80 | LIS2MDL_OUTX_L_REG), 8, &rawData[0]);  // Read the 6 raw data registers into data array
-
-    destination[0] = ((int16_t)rawData[1] << 8) | rawData[0] ;       // Turn the MSB and LSB into a signed 16-bit value
-    destination[1] = ((int16_t)rawData[3] << 8) | rawData[2] ;  
-    destination[2] = ((int16_t)rawData[5] << 8) | rawData[4] ; 
+    // reset device
+    uint8_t temp = readRegister(CFG_REG_A);
+    writeRegister(CFG_REG_A, temp | 0x20); // Set bit 5 to 1 to reset LIS2MDL
+    delay(1);
+    writeRegister(CFG_REG_A, temp | 0x40); // Set bit 6 to 1 to boot LIS2MDL
 }
 
-
-int16_t LIS2MDL::readTemperature()
-{
-    uint8_t rawData[2];  // x/y/z mag register data stored here
-    readBytes(LIS2MDL_ADDRESS, (0x80 | LIS2MDL_TEMP_OUT_L_REG), 2, &rawData[0]);  // Read the 8 raw data registers into data array
-
-    int16_t temp = ((int16_t)rawData[1] << 8) | rawData[0] ;       // Turn the MSB and LSB into a signed 16-bit value
-    return temp;
-}
-
-
-void LIS2MDL::offsetBias(float * dest1, float * dest2)
+void LIS2MDL::calibrate(void)
 {
     int32_t mag_bias[3] = {0, 0, 0}, mag_scale[3] = {0, 0, 0};
     int16_t mag_max[3] = {-32767, -32767, -32767}, mag_min[3] = {32767, 32767, 32767}, mag_temp[3] = {0, 0, 0};
-    float _mRes = 0.0015f;
-
-    Serial.println("Calculate mag offset bias: move all around to sample the complete response surface!");
-    delay(4000);
 
     for (int ii = 0; ii < 4000; ii++)
     {
@@ -96,15 +93,14 @@ void LIS2MDL::offsetBias(float * dest1, float * dest2)
         delay(12);
     }
 
-    _mRes = 0.0015f; // fixed sensitivity
     // Get hard iron correction
     mag_bias[0]  = (mag_max[0] + mag_min[0])/2;  // get average x mag bias in counts
     mag_bias[1]  = (mag_max[1] + mag_min[1])/2;  // get average y mag bias in counts
     mag_bias[2]  = (mag_max[2] + mag_min[2])/2;  // get average z mag bias in counts
 
-    dest1[0] = (float) mag_bias[0] * _mRes;  // save mag biases in G for main program
-    dest1[1] = (float) mag_bias[1] * _mRes;   
-    dest1[2] = (float) mag_bias[2] * _mRes;  
+    _bias[0] = (float) mag_bias[0] * SCALE;  // save mag biases in G for main program
+    _bias[1] = (float) mag_bias[1] * SCALE;   
+    _bias[2] = (float) mag_bias[2] * SCALE;  
 
     // Get soft iron correction estimate
     mag_scale[0]  = (mag_max[0] - mag_min[0])/2;  // get average x axis max chord length in counts
@@ -114,84 +110,57 @@ void LIS2MDL::offsetBias(float * dest1, float * dest2)
     float avg_rad = mag_scale[0] + mag_scale[1] + mag_scale[2];
     avg_rad /= 3.0f;
 
-    dest2[0] = avg_rad/((float)mag_scale[0]);
-    dest2[1] = avg_rad/((float)mag_scale[1]);
-    dest2[2] = avg_rad/((float)mag_scale[2]);
-
-    Serial.println("Mag Calibration done!");
+    _scale[0] = avg_rad/((float)mag_scale[0]);
+    _scale[1] = avg_rad/((float)mag_scale[1]);
+    _scale[2] = avg_rad/((float)mag_scale[2]);
 }
 
-void LIS2MDL::selfTest()
+void LIS2MDL::readData(float & x, float & y, float & z)
 {
-    int16_t temp[3] = {0, 0, 0};
-    float magTest[3] = {0., 0., 0.};
-    float magNom[3] = {0., 0., 0.};
-    int32_t sum[3] = {0, 0, 0};
-    float _mRes = 0.0015f;
+    int16_t data[3];
 
-    // first, get average response with self test disabled
-    for (int ii = 0; ii < 50; ii++)
-    {
-        readData(temp);
-        sum[0] += temp[0];
-        sum[1] += temp[1];
-        sum[2] += temp[2];
-        delay(50);
-    }
+    readData(data);     
 
-    magNom[0] = (float) sum[0] / 50.0f;
-    magNom[1] = (float) sum[1] / 50.0f;
-    magNom[2] = (float) sum[2] / 50.0f;
+    x = (data[0]*SCALE - _bias[0]) * _scale[0];  
+    y = (data[1]*SCALE - _bias[1]) * _scale[1];   
+    z = (data[2]*SCALE - _bias[2]) * _scale[2];  
+}
 
-    uint8_t c = readByte(LIS2MDL_ADDRESS, LIS2MDL_CFG_REG_C);
-    writeByte(LIS2MDL_ADDRESS, LIS2MDL_CFG_REG_C, c | 0x02); // enable self test
-    delay(100); // let mag respond
+float LIS2MDL::readTemperature(void)
+{
+    uint8_t data[2];  
 
-    sum[0] = 0;
-    sum[1] = 0;
-    sum[2] = 0;
-    for (int ii = 0; ii < 50; ii++)
-    {
-        readData(temp);
-        sum[0] += temp[0];
-        sum[1] += temp[1];
-        sum[2] += temp[2];
-        delay(50);
-    }
+    readRegisters((0x80 | TEMP_OUT_L_REG), 2, data);  
 
-    magTest[0] = (float) sum[0] / 50.0f;
-    magTest[1] = (float) sum[1] / 50.0f;
-    magTest[2] = (float) sum[2] / 50.0f;
+    return (((int16_t)data[1] << 8) | data[0]) / 8.0f + 25.0f; ;
+}
 
-    writeByte(LIS2MDL_ADDRESS, LIS2MDL_CFG_REG_C, c); // return to previous settings/normal mode
-    delay(100); // let mag respond
+void LIS2MDL::readData(int16_t data[3])
+{
+  uint8_t rawData[6];  
 
-    Serial.println("Mag Self Test:");
-    Serial.print("Mx results:"); Serial.print(  (magTest[0] - magNom[0]) * _mRes * 1000.0); Serial.println(" mG");
-    Serial.print("My results:"); Serial.println((magTest[0] - magNom[0]) * _mRes * 1000.0);
-    Serial.print("Mz results:"); Serial.println((magTest[1] - magNom[1]) * _mRes * 1000.0);
-    Serial.println("Should be between 15 and 500 mG");
-    delay(2000);  // give some time to read the screen
+  readRegisters((0x80 | OUTX_L_REG), 8, rawData);  
+
+  data[0] = ((int16_t)rawData[1] << 8) | rawData[0] ;       
+  data[1] = ((int16_t)rawData[3] << 8) | rawData[2] ;  
+  data[2] = ((int16_t)rawData[5] << 8) | rawData[4] ; 
+}
+
+uint8_t LIS2MDL::readRegister(uint8_t subAddress)
+{
+    uint8_t data=0;
+    readRegisters(subAddress, 1, &data);
+    return data;
+}
+
+void LIS2MDL::readRegisters(uint8_t subAddress, uint8_t count, uint8_t * dest)
+{
+    cpi2c_readRegisters(_i2c, subAddress, count, dest);
+}
+
+void LIS2MDL::writeRegister(uint8_t subAddress, uint8_t data)
+{
+    cpi2c_writeRegister(_i2c, subAddress, data);
 }
 
 
-// I2C read/write functions for the LIS2MDL
-
-void LIS2MDL::writeByte(uint8_t address, uint8_t subAddress, uint8_t data) {
-    uint8_t temp[2];
-    temp[0] = subAddress;
-    temp[1] = data;
-    Wire.transfer(address, &temp[0], 2, NULL, 0); 
-}
-
-
-uint8_t LIS2MDL::readByte(uint8_t address, uint8_t subAddress) {
-    uint8_t temp[1];
-    Wire.transfer(address, &subAddress, 1, &temp[0], 1);
-    return temp[0];
-}
-
-
-void LIS2MDL::readBytes(uint8_t address, uint8_t subAddress, uint8_t count, uint8_t * dest) {
-    Wire.transfer(address, &subAddress, 1, dest, count); 
-}
