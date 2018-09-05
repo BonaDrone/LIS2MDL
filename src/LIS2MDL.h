@@ -56,8 +56,11 @@ class LIS2MDL
 
         bool begin(void);
 
+        void calibrate(void);
+
         bool checkNewData(void);
 
+        // milliGauss
         void readData(float & x, float & y, float & z);
 
         float readTemperature(void);
@@ -91,8 +94,9 @@ class LIS2MDL
         static const uint8_t TEMP_OUT_H_REG         = 0x6F;
 
         static const uint8_t ADDRESS = 0x1E;
+        static const uint8_t ID      = 0x40;
 
-        static constexpr float SCALE = 0.0015f;
+        static constexpr float SCALE = 0.0015f; // raw units to Gauss (results reported in milliGauss)
 
         uint8_t _i2c; // cross-platform I^2C support
 
@@ -102,8 +106,6 @@ class LIS2MDL
         float _scale[3];
 
         void reset(void);
-
-        void calibrate(void);
 
         void readData(int16_t data[3]);
 

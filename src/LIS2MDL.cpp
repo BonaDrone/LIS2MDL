@@ -41,8 +41,7 @@ bool LIS2MDL::begin(void)
 
     delay(100);
 
-
-    if (readRegister(WHO_AM_I) != ADDRESS) {
+    if (readRegister(WHO_AM_I) != ID) {
         return false;
     }
 
@@ -59,7 +58,11 @@ bool LIS2MDL::begin(void)
     // enable data ready on interrupt pin (bit 0 == 1), enable block data read (bit 4 == 1)
     writeRegister(CFG_REG_C, 0x01 | 0x10);  
 
-    calibrate();
+    // start with default bias and scale (can be modified by calibration)
+    for (uint8_t k=0; k<3; ++k) {
+        _bias[k] = 0;
+        _scale[k] = 1;
+    }
 
     return true;
 }
@@ -121,9 +124,9 @@ void LIS2MDL::readData(float & x, float & y, float & z)
 
     readData(data);     
 
-    x = (data[0]*SCALE - _bias[0]) * _scale[0];  
-    y = (data[1]*SCALE - _bias[1]) * _scale[1];   
-    z = (data[2]*SCALE - _bias[2]) * _scale[2];  
+    x = 1000 * (data[0]*SCALE - _bias[0]) * _scale[0];  
+    y = 1000 * (data[1]*SCALE - _bias[1]) * _scale[1];   
+    z = 1000 * (data[2]*SCALE - _bias[2]) * _scale[2];  
 }
 
 float LIS2MDL::readTemperature(void)
