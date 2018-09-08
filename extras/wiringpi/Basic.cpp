@@ -1,13 +1,7 @@
 /* 
-   Basic.ino: LIS2MDL basic example
+   Basic.cpp: LIS2MDL basic example
 
    Copyright (C) 2018 Simon D. Levy
-
-   Additional dependencies:
-
-       https://github.com/simondlevy/LSM6DSM
-       https://github.com/simondlevy/LIS2MDL
-       https://github.com/simondlevy/CrossPlatformDataBus
 
    This file is part of LIS2MDL.
 
@@ -22,17 +16,15 @@
    GNU General Public License for more details.
    You should have received a copy of the GNU General Public License
    along with LIS2MDL.  If not, see <http://www.gnu.org/licenses/>.
- */
+*/
 
 #include "LIS2MDL.h"
 
-#ifdef __MK20DX256__
-#include <i2c_t3.h>
-#define NOSTOP I2C_NOSTOP
-#else
-#include <Wire.h>
-#define NOSTOP false
-#endif
+#include <wiringPi.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <errno.h>
 
 // params
 static const  LIS2MDL::Rate_t MRATE = LIS2MDL::ODR_50Hz;
@@ -42,30 +34,22 @@ static LIS2MDL lis2mdl(MRATE);
 
 static void report(const char * dim, float val)
 {
-    Serial.print(dim);
-    Serial.print(": ");
-    Serial.print(val);
-    Serial.print(" milligauss  "); 
+    printf("%s: %f milligauss ", dim, val);
 }
 
 void setup()
 {
-    Serial.begin(115200);
-
-#ifdef __MK20DX256__
-    Wire.begin(I2C_MASTER, 0x00, I2C_PINS_18_19, I2C_PULLUP_EXT, I2C_RATE_400);
-#else
-    Wire.begin();
-#endif
+    // Set up the wiringPi library
+    if (wiringPiSetup () < 0) {
+        fprintf (stderr, "Unable to setup wiringPi: %s\n", strerror (errno));
+        exit(1);
+    }
 
     delay(100);
 
-    delay(100);
-
-    // Start the LIS2MDL
     if (!lis2mdl.begin()) {
         while (true) {
-            Serial.println("Unable to connect to LIS2MDL");
+            printf("Unable to connect to LIS2MDL");
         }
     }
 }
@@ -91,7 +75,7 @@ void loop()
         report("\tY", my);
         report("\tZ", mz);
 
-        Serial.println();
+        printf("\n");
     }
 }
 
