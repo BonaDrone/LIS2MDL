@@ -54,7 +54,7 @@ class LIS2MDL
 
         LIS2MDL(Rate_t rate);
 
-        bool begin(void);
+        bool begin(uint8_t bus=1);
 
         void calibrate(void);
 

@@ -20,11 +20,13 @@
 
 #include "LIS2MDL.h"
 
-#include <wiringPi.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+
+// in timing.cpp
+uint32_t millis(void);
 
 // params
 static const  LIS2MDL::Rate_t MRATE = LIS2MDL::ODR_50Hz;
@@ -39,15 +41,7 @@ static void report(const char * dim, float val)
 
 void setup()
 {
-    // Set up the wiringPi library
-    if (wiringPiSetup () < 0) {
-        fprintf (stderr, "Unable to setup wiringPi: %s\n", strerror (errno));
-        exit(1);
-    }
-
-    delay(100);
-
-    if (!lis2mdl.begin()) {
+    if (!lis2mdl.begin(0)) {
         while (true) {
             printf("Unable to connect to LIS2MDL\n");
         }
