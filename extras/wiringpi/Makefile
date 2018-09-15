@@ -25,7 +25,8 @@ ALL = Basic
 
 LIS2MDLSRC = ../../src
 
-I2CINC = $(CPDB)/src
+CPSRC = $(CPDB)/src
+CPEXT  = $(CPDB)/extras
 I2CSRC = $(CPDB)/extras/i2c/wiringpi/src
 
 all: $(ALL)
@@ -34,16 +35,16 @@ Basic: Basic.o LIS2MDL.o WiringPiI2C.o main.o
 	g++ -std=c++11 -o Basic Basic.o LIS2MDL.o WiringPiI2C.o main.o -lwiringPi
 
 Basic.o: Basic.cpp 
-	g++ -std=c++11 -Wall -I$(I2CINC) -I$(LIS2MDLSRC) -c Basic.cpp
+	g++ -std=c++11 -Wall -I$(CPSRC) -I$(LIS2MDLSRC) -c Basic.cpp
 
 LIS2MDL.o:  $(LIS2MDLSRC)/LIS2MDL.cpp  $(LIS2MDLSRC)/LIS2MDL.h
-	g++ -std=c++11 -Wall -I$(I2CINC) -I$(LIS2MDLSRC) -c $(LIS2MDLSRC)/LIS2MDL.cpp
+	g++ -std=c++11 -Wall -I$(CPSRC) -I$(LIS2MDLSRC) -c $(LIS2MDLSRC)/LIS2MDL.cpp
 
 WiringPiI2C.o: $(I2CSRC)/WiringPiI2C.cpp 
-	g++ -std=c++11 -Wall -I$(I2CINC) -c $(I2CSRC)/WiringPiI2C.cpp
+	g++ -std=c++11 -Wall -I$(CPSRC) -c $(I2CSRC)/WiringPiI2C.cpp
 
-main.o: ../main.cpp 
-	g++ -std=c++11 -Wall -c ../main.cpp
+main.o: $(CPEXT)/main.cpp 
+	g++ -std=c++11 -Wall -c $(CPEXT)/main.cpp
 
 run: Basic
 	./Basic
