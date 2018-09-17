@@ -52,64 +52,82 @@ class LIS2MDL
 
         } Rate_t;
 
-        LIS2MDL(Rate_t rate);
+        typedef enum {
 
-        bool begin(uint8_t bus=1);
+            ERROR_NONE,
+            ERROR_CONNECT,
+            ERROR_ID,
+            ERROR_SELFTEST
+
+        } Error_t;
+
+        static const uint8_t ADDRESS  = 0x1E;
+
+        LIS2MDL(Rate_t odr);
+
+        LIS2MDL(Rate_t odr, float bias[3], float scale[3]);
+
+        Error_t begin(void);
 
         void calibrate(void);
 
-        bool checkNewData(void);
+        bool checkNewData();
 
-        // milliGauss
-        void readData(float & x, float & y, float & z);
+        void readData(float & mx, float & my, float & mz);
 
-        float readTemperature(void);
+        float readTemperature();
 
     private:
 
-        // Register map
+        //Register map for LIS2MDL'
         // http://www.st.com/content/ccc/resource/technical/document/datasheet/group3/29/13/d1/e0/9a/4d/4f/30/DM00395193/files/DM00395193.pdf/jcr:content/translations/en.DM00395193.pdf
-        static const uint8_t OFFSET_X_REG_L         = 0x45;
-        static const uint8_t OFFSET_X_REG_H         = 0x46;
-        static const uint8_t OFFSET_Y_REG_L         = 0x47;
-        static const uint8_t OFFSET_Y_REG_H         = 0x48;
-        static const uint8_t OFFSET_Z_REG_L         = 0x49;
-        static const uint8_t OFFSET_Z_REG_H         = 0x4A;
-        static const uint8_t WHO_AM_I               = 0x4F;
-        static const uint8_t CFG_REG_A              = 0x60;
-        static const uint8_t CFG_REG_B              = 0x61;
-        static const uint8_t CFG_REG_C              = 0x62;
-        static const uint8_t INT_CTRL_REG           = 0x63;
-        static const uint8_t INT_SOURCE_REG         = 0x64;
-        static const uint8_t INT_THS_L_REG          = 0x65;
-        static const uint8_t INT_THS_H_REG          = 0x66;
-        static const uint8_t STATUS_REG             = 0x67;
-        static const uint8_t OUTX_L_REG             = 0x68;
-        static const uint8_t OUTX_H_REG             = 0x69;
-        static const uint8_t OUTY_L_REG             = 0x6A;
-        static const uint8_t OUTY_H_REG             = 0x6B;
-        static const uint8_t OUTZ_L_REG             = 0x6C;
-        static const uint8_t OUTZ_H_REG             = 0x6D;
-        static const uint8_t TEMP_OUT_L_REG         = 0x6E;
-        static const uint8_t TEMP_OUT_H_REG         = 0x6F;
+        static const uint8_t OFFSET_X_REG_L        = 0x45;
+        static const uint8_t OFFSET_X_REG_H        = 0x46;
+        static const uint8_t OFFSET_Y_REG_L        = 0x47;
+        static const uint8_t OFFSET_Y_REG_H        = 0x48;
+        static const uint8_t OFFSET_Z_REG_L        = 0x49;
+        static const uint8_t OFFSET_Z_REG_H        = 0x4A;
+        static const uint8_t WHO_AM_I              = 0x4F;
+        static const uint8_t CFG_REG_A             = 0x60;
+        static const uint8_t CFG_REG_B             = 0x61;
+        static const uint8_t CFG_REG_C             = 0x62;
+        static const uint8_t INT_CTRL_REG          = 0x63;
+        static const uint8_t INT_SOURCE_REG        = 0x64;
+        static const uint8_t INT_THS_L_REG         = 0x65;
+        static const uint8_t INT_THS_H_REG         = 0x66;
+        static const uint8_t STATUS_REG            = 0x67;
+        static const uint8_t OUTX_L_REG            = 0x68;
+        static const uint8_t OUTX_H_REG            = 0x69;
+        static const uint8_t OUTY_L_REG            = 0x6A;
+        static const uint8_t OUTY_H_REG            = 0x6B;
+        static const uint8_t OUTZ_L_REG            = 0x6C;
+        static const uint8_t OUTZ_H_REG            = 0x6D;
+        static const uint8_t TEMP_OUT_L_REG        = 0x6E;
+        static const uint8_t TEMP_OUT_H_REG        = 0x6F;
 
-        static const uint8_t ADDRESS = 0x1E;
-        static const uint8_t ID      = 0x40;
+        // Fixed sensitivity and full scale (+/- 49.152 Gauss); 
+        static constexpr float RESOLUTION = 0.0015f;  
 
-        static constexpr float SCALE = 0.0015f; // raw units to Gauss (results reported in milliGauss)
+        // Used in self-test
+        static constexpr float MINVAL = .015;
+        static constexpr float MAXVAL = .500;
 
-        uint8_t _i2c; // cross-platform I^2C support
+         // Cross-platform support
+        uint8_t _i2c;
 
-        Rate_t _rate;
+        // Pass to constructor
+        Rate_t _odr;
 
+
+        // Compute in calibrate() method
         float _bias[3];
         float _scale[3];
 
-        void reset(void);
+        bool selfTest();
 
-        void readData(int16_t data[3]);
+        void readData(int16_t * destination);
 
+        void    writeRegister(uint8_t subAddress, uint8_t data);
         uint8_t readRegister(uint8_t subAddress);
         void    readRegisters(uint8_t subAddress, uint8_t count, uint8_t * dest);
-        void    writeRegister(uint8_t subAddress, uint8_t data);
 };
