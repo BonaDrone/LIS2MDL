@@ -42,9 +42,9 @@ LIS2MDL::LIS2MDL(Rate_t odr)
     LIS2MDL(odr, bias, scale);
 }
 
-LIS2MDL::Error_t LIS2MDL::begin(void)
+LIS2MDL::Error_t LIS2MDL::begin(uint8_t bus)
 {
-    _i2c = cpi2c_open(ADDRESS);
+    _i2c = cpi2c_open(ADDRESS, bus);
 
     if (readRegister(WHO_AM_I) != 0x40) {
         return ERROR_ID;

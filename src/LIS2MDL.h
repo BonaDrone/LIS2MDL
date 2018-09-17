@@ -67,7 +67,7 @@ class LIS2MDL
 
         LIS2MDL(Rate_t odr, float bias[3], float scale[3]);
 
-        Error_t begin(void);
+        Error_t begin(uint8_t bus=1);
 
         void calibrate(void);
 
