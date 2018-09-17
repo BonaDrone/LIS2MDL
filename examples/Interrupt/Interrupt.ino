@@ -60,12 +60,11 @@ void setup()
     digitalWrite(LED_PIN, HIGH); // start with led off
 
     pinMode(INTERRUPT_PIN, INPUT);
+    attachInterrupt(INTERRUPT_PIN , interruptHandler, RISING);  
 
     Wire.begin(TWI_PINS_20_21); // set master mode 
     Wire.setClock(400000); // I2C frequency at 400 kHz  
     delay(100);
-
-    attachInterrupt(INTERRUPT_PIN , interruptHandler, RISING);  
 
     switch (lis2mdl.begin()) {
 
@@ -94,6 +93,10 @@ void setup()
     //lis2mdl.calibrate();
     //Serial.println("Mag Calibration done!");
     //delay(2000); 
+
+    // Read once to ensure interrupts will work
+    float mx=0, my=0, mz=0;
+    lis2mdl.readData(mx, my, mz);
 
     // Turn LED on
     digitalWrite(LED_PIN, LOW);
