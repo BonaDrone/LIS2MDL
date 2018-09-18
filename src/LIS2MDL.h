@@ -69,9 +69,9 @@ class LIS2MDL
 
         Error_t begin(uint8_t bus=1);
 
-        void calibrate(void);
+        void calibrate(float biasOut[3], float scaleOut[3]);
 
-        bool checkNewData();
+        bool checkNewData(void);
 
         void readData(float & mx, float & my, float & mz);
 
@@ -117,7 +117,6 @@ class LIS2MDL
 
         // Pass to constructor
         Rate_t _odr;
-
 
         // Compute in calibrate() method
         float _bias[3];

@@ -74,7 +74,7 @@ LIS2MDL::Error_t LIS2MDL::begin(uint8_t bus)
 }
 
 
-bool LIS2MDL::checkNewData()
+bool LIS2MDL::checkNewData(void)
 {
     return (bool)readRegister(STATUS_REG);   
 }
@@ -111,42 +111,43 @@ void LIS2MDL::readData(int16_t * destination)
 
 
 
-void LIS2MDL::calibrate(void)
+void LIS2MDL::calibrate(float biasOut[3], float scaleOut[3])
 {
-    int32_t mag_bias[3] = {0, 0, 0}, mag_scale[3] = {0, 0, 0};
     int16_t mag_max[3] = {-32767, -32767, -32767}, mag_min[3] = {32767, 32767, 32767}, mag_temp[3] = {0, 0, 0};
 
-
-    for (int ii = 0; ii < 4000; ii++)
+    for (int i = 0; i < 4000; i++)
     {
         readData(mag_temp);
-        for (int jj = 0; jj < 3; jj++) {
-            if(mag_temp[jj] > mag_max[jj]) mag_max[jj] = mag_temp[jj];
-            if(mag_temp[jj] < mag_min[jj]) mag_min[jj] = mag_temp[jj];
+
+        for (uint8_t k=0; k<3; ++k) {
+
+            if(mag_temp[k] > mag_max[k]) mag_max[k] = mag_temp[k];
+            if(mag_temp[k] < mag_min[k]) mag_min[k] = mag_temp[k];
         }
+
         delay(12);
     }
 
-    // Get hard iron correction
-    mag_bias[0]  = (mag_max[0] + mag_min[0])/2;  // get average x mag bias in counts
-    mag_bias[1]  = (mag_max[1] + mag_min[1])/2;  // get average y mag bias in counts
-    mag_bias[2]  = (mag_max[2] + mag_min[2])/2;  // get average z mag bias in counts
+    int32_t mag_scale[3] = {0, 0, 0};
 
-    _bias[0] = (float) mag_bias[0] * RESOLUTION;  // save mag biases in G for main program
-    _bias[1] = (float) mag_bias[1] * RESOLUTION;   
-    _bias[2] = (float) mag_bias[2] * RESOLUTION;  
+    for (uint8_t k=0; k<3; ++k) {
 
-    // Get soft iron correction estimate
-    mag_scale[0]  = (mag_max[0] - mag_min[0])/2;  // get average x axis max chord length in counts
-    mag_scale[1]  = (mag_max[1] - mag_min[1])/2;  // get average y axis max chord length in counts
-    mag_scale[2]  = (mag_max[2] - mag_min[2])/2;  // get average z axis max chord length in counts
+        // Get hard iron correction
+        int32_t mag_bias  = (mag_max[k] + mag_min[k])/2;  // get average x mag bias in c unts
+
+        biasOut[k] = _bias[k] = (float) mag_bias * RESOLUTION;  // save mag biases in G for main program
+
+        // Get soft iron correction estimate
+        mag_scale[k]  = (mag_max[k] - mag_min[k])/2;  // get average x axis max chord length in counts
+    }
 
     float avg_rad = mag_scale[0] + mag_scale[1] + mag_scale[2];
     avg_rad /= 3.0f;
 
-    _scale[0] = avg_rad/((float)mag_scale[0]);
-    _scale[1] = avg_rad/((float)mag_scale[1]);
-    _scale[2] = avg_rad/((float)mag_scale[2]);
+    for (uint8_t k=0; k<3; ++k) {
+
+        scaleOut[k] = _scale[k] = avg_rad/((float)mag_scale[k]);
+    }
 }
 
 bool LIS2MDL::selfTest()

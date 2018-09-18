@@ -88,11 +88,22 @@ void setup()
     digitalWrite(LED_PIN, LOW);
 
     // Un-comment the following lines to calibrate
-    //Serial.println("Calibrate: move all around to sample the complete response surface!");
-    //delay(2000);
-    //lis2mdl.calibrate();
-    //Serial.println("Mag Calibration done!");
-    //delay(2000); 
+    /*
+    Serial.println("Calibrate: move all around to sample the complete response surface!");
+    delay(2000);
+    float bias[3] = {0,0,0}, scale[3] = {0,0,0};
+    lis2mdl.calibrate(bias, scale);
+    Serial.println("Mag Calibration done!");
+    Serial.println("mag biases (mG)");
+    Serial.println(1000.0f * bias[0]);
+    Serial.println(1000.0f * bias[1]);
+    Serial.println(1000.0f * bias[2]); 
+    Serial.println("mag scale (mG)");
+    Serial.println(scale[0]);
+    Serial.println(scale[1]);
+    Serial.println(scale[2]); 
+    delay(2000); 
+    */
 
     // Read once to ensure interrupts will work
     float mx=0, my=0, mz=0;
