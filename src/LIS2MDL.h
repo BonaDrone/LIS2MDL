@@ -69,6 +69,8 @@ class LIS2MDL
 
         Error_t begin(uint8_t bus=1);
 
+        void clearInterrupt(void);
+
         void calibrate(float biasOut[3], float scaleOut[3]);
 
         bool checkNewData(void);

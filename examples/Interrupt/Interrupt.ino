@@ -106,8 +106,7 @@ void setup()
     */
 
     // Read once to ensure interrupts will work
-    float mx=0, my=0, mz=0;
-    lis2mdl.readData(mx, my, mz);
+    lis2mdl.clearInterrupt();  // necessary for STM32 sensors
 
     // Turn LED on
     digitalWrite(LED_PIN, LOW);

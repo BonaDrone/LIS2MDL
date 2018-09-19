@@ -73,6 +73,11 @@ LIS2MDL::Error_t LIS2MDL::begin(uint8_t bus)
     return selfTest() ? ERROR_NONE : ERROR_SELFTEST;
 }
 
+void LIS2MDL::clearInterrupt(void)
+{
+    int16_t data[3];
+    readData(data);
+}
 
 bool LIS2MDL::checkNewData(void)
 {
